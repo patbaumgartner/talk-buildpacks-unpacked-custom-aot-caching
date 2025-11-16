@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+# Always participate
+echo "ascii-weather"
+exit 0
+

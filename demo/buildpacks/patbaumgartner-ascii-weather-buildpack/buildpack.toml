@@ -1,0 +1,26 @@
+api = "0.10"
+
+[buildpack]
+id = "patbaumgartner/buildpacks-ascii-weather"
+name = "Patbaumgartner ASCII Weather Buildpack"
+version = "0.1.0"
+keywords = ["fun", "ascii", "weather"]
+description = "A simple Cloud Native Buildpack that adds ascii-weather to the build process."
+homepage = "https://github.com/patbaumgartner/talk-buildpacks-unpacked-custom-aot-caching"
+
+[[buildpack.licenses]]
+type = "Apache-2.0"
+
+[[stacks]]
+id = "*"
+
+[[targets]]
+arch = "amd64"
+os = "linux"
+
+[[targets]]
+arch = "arm64"
+os = "linux"
+
+[metadata]
+include-files = ["buildpack.toml", "bin/detect", "bin/build"]

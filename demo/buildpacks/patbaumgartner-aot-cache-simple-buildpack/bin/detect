@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Simple AOT Cache Buildpack - Detect Phase
+set -eo pipefail
+
+: "${CNB_BUILD_PLAN_PATH:?CNB_BUILD_PLAN_PATH not set}"
+mkdir -p "$(dirname "$CNB_BUILD_PLAN_PATH")"
+
+cat >"$CNB_BUILD_PLAN_PATH" <<EOL
+[[requires]]
+name = "jre"
+  [requires.metadata]
+  build = true
+  launch = true
+EOL
+
+exit 0

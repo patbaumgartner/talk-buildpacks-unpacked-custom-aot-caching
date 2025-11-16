@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#  Simple AOT Cache Buildpack - Build Phase
+set -euo pipefail
+
+echo
+echo "Patbaumgartner Simple AOT Cache Buildpack 0.1.0"
+echo "  https://github.com/patbaumgartner/talk-buildpacks-unpacked-custom-aot-caching"
+echo
+
+LAYER_NAME="aot-cache"
+LAYER_DIR="${CNB_LAYERS_DIR}/${LAYER_NAME}"
+LAYER_TOML="${LAYER_DIR}.toml"
+AOT_FILE="${LAYER_DIR}/app.aot"
+
+# Create layer directory
+mkdir -p "${LAYER_DIR}"
+
+# Generate AOT cache
+java -cp "." \
+  -Xlog:aot \
+  -Xlog:class+path=info \
+  -XX:AOTCacheOutput="${AOT_FILE}" \
+  -Dspring.context.exit=onRefresh \
+  org.springframework.boot.loader.launch.JarLauncher 
+
+# Minimal layer types
+cat > "${LAYER_TOML}" <<EOL
+[types]
+launch = true
+build = false
+cache = false
+EOL
+
+# Set JAVA_TOOL_OPTIONS to use the AOT cache at launch time
+mkdir -p "${LAYER_DIR}/env.launch"
+echo " " > "${LAYER_DIR}/env.launch/JAVA_TOOL_OPTIONS.delim"
+echo " -XX:AOTCache=${AOT_FILE}" > "${LAYER_DIR}/env.launch/JAVA_TOOL_OPTIONS.append"
+
+# All done
+echo
+echo "  AOT Cache: Layer contribution complete"
+
+exit 0

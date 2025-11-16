@@ -1,0 +1,352 @@
+#!/usr/bin/env sh
+set -eu
+
+echo
+echo "=============================================="
+echo "           ASCII Weather Forecast"
+echo "=============================================="
+echo
+
+# Base URL for Open-Meteo; can be overridden
+API_URL="${BP_WEATHER_API_URL:-https://api.open-meteo.com/v1/forecast}"
+LOCATION="${BP_WEATHER_LOCATION:-}"
+
+parse_location() {
+  lat="$(printf "%s" "$LOCATION" | cut -d',' -f1 | tr -d ' ')"
+  lon="$(printf "%s" "$LOCATION" | cut -d',' -f2 | tr -d ' ')"
+
+  if [ -z "$lat" ] || [ -z "$lon" ]; then
+    echo "Invalid BP_WEATHER_LOCATION. Expected format: LAT,LON"
+    return 1
+  fi
+
+  echo "$lat" "$lon"
+}
+
+decode_weathercode() {
+  code="$1"
+
+  case "$code" in
+    0)
+      echo "Clear sky"
+      ;;
+    1)
+      echo "Mainly clear"
+      ;;
+    2)
+      echo "Partly cloudy"
+      ;;
+    3)
+      echo "Overcast"
+      ;;
+    45)
+      echo "Foggy"
+      ;;
+    48)
+      echo "Depositing rime fog (freezing fog)"
+      ;;
+    51)
+      echo "Light drizzle"
+      ;;
+    53)
+      echo "Moderate drizzle"
+      ;;
+    55)
+      echo "Dense drizzle"
+      ;;
+    56)
+      echo "Light freezing drizzle"
+      ;;
+    57)
+      echo "Dense freezing drizzle"
+      ;;
+    61)
+      echo "Slight rain"
+      ;;
+    63)
+      echo "Moderate rain"
+      ;;
+    65)
+      echo "Heavy rain"
+      ;;
+    66)
+      echo "Light freezing rain"
+      ;;
+    67)
+      echo "Heavy freezing rain"
+      ;;
+    71)
+      echo "Slight snowfall"
+      ;;
+    73)
+      echo "Moderate snowfall"
+      ;;
+    75)
+      echo "Heavy snowfall"
+      ;;
+    77)
+      echo "Snow grains"
+      ;;
+    80)
+      echo "Slight rain showers"
+      ;;
+    81)
+      echo "Moderate rain showers"
+      ;;
+    82)
+      echo "Violent rain showers"
+      ;;
+    85)
+      echo "Slight snow showers"
+      ;;
+    86)
+      echo "Heavy snow showers"
+      ;;
+    95)
+      echo "Thunderstorm"
+      ;;
+    96)
+      echo "Thunderstorm with slight hail"
+      ;;
+    99)
+      echo "Thunderstorm with heavy hail"
+      ;;
+    *)
+      echo "Unknown conditions"
+      ;;
+  esac
+}
+
+mood_line() {
+  code="$1"
+  temp="$2"
+
+  # very rough temp classification
+  t_cat="mild"
+  if [ -n "$temp" ] 2>/dev/null; then
+    t_int=$(printf "%.0f" "$temp" 2>/dev/null || echo 0)
+    if [ "$t_int" -le 0 ]; then
+      t_cat="freezing"
+    elif [ "$t_int" -le 10 ]; then
+      t_cat="chilly"
+    elif [ "$t_int" -le 20 ]; then
+      t_cat="mild"
+    elif [ "$t_int" -le 28 ]; then
+      t_cat="warm"
+    else
+      t_cat="hot"
+    fi
+  fi
+
+  case "$code" in
+    0|1)
+      echo "Good day to ship a build and maybe go outside once."
+      ;;
+    2|3)
+      echo "Sky is a bit crowded, but your build does not care."
+      ;;
+    45|48)
+      echo "Foggy brain? Foggy weather. Perfect time to refactor carefully."
+      ;;
+    51|53|55|56|57)
+      echo "Soft drizzle outside, time to focus on code inside."
+      ;;
+    61|63|65|66|67|80|81|82)
+      echo "Proper rain vibes. Ideal conditions to stay at the keyboard."
+      ;;
+    71|73|75|77|85|86)
+      echo "Snow mode. Keep your coffee warm and your builds green."
+      ;;
+    95|96|99)
+      echo "Thunderstorm mood. Maybe do not deploy to production right now."
+      ;;
+    *)
+      echo "Weather is uncertain. Just like estimates on this build."
+      ;;
+  esac
+
+  echo "Overall temperature mood: $t_cat."
+}
+
+ascii_weather() {
+  temp="$1"
+  code="$2"
+
+  cond_text="$(decode_weathercode "$code")"
+
+  echo "----------------------------------------------"
+  echo "            Current Weather (ASCII)"
+  echo "----------------------------------------------"
+
+  case "$code" in
+    0)
+      # clear sky
+      echo "     \\   /     "
+      echo "      .-.      "
+      echo "   --(   )--   "
+      echo "      '-'      "
+      echo "      Clear    "
+      ;;
+    1|2)
+      # mainly clear / partly cloudy
+      echo "    \\  /       "
+      echo "  _ /\"\".-.     "
+      echo "    \\_(   ).   "
+      echo "    /(___(__)  "
+      echo "   Partly clear"
+      ;;
+    3)
+      # overcast
+      echo "      .--.     "
+      echo "   .-(    ).   "
+      echo "  (___.__)__)  "
+      echo "    Overcast   "
+      ;;
+    45|48)
+      # fog
+      echo "   _ - _ - _ - "
+      echo "  /  Fog bank  "
+      echo " /_ - _ - _ -  "
+      ;;
+    51|53|55|56|57)
+      # drizzle
+      echo "      .-.      "
+      echo "     (   ).    "
+      echo "    (___(__)   "
+      echo "     '  '  '   "
+      echo "     Drizzle   "
+      ;;
+    61|63|65|80|81|82)
+      # rain
+      echo "      .-.      "
+      echo "     (   ).    "
+      echo "    (___(__)   "
+      echo "    ' ' ' '    "
+      echo "      Rain     "
+      ;;
+    66|67)
+      # freezing rain
+      echo "      .-.      "
+      echo "     (   ).    "
+      echo "    (___(__)   "
+      echo "   *  '  *  '  "
+      echo " Freezing rain "
+      ;;
+    71|73|75|77|85|86)
+      # snow
+      echo "     * * *     "
+      echo "    *     *    "
+      echo "     * * *     "
+      echo "      Snow     "
+      ;;
+    95|96|99)
+      # thunderstorm
+      echo "      .-.      "
+      echo "   .-(   ).    "
+      echo "  (___.__)__)  "
+      echo "   / / / /     "
+      echo " Thunderstorm  "
+      ;;
+    *)
+      echo "     ???       "
+      echo "  Unknown sky  "
+      ;;
+  esac
+
+  echo
+  echo "Temperature: ${temp:-n/a} C"
+  echo "Code:        ${code:-n/a}"
+  echo "Condition:   ${cond_text}"
+  echo
+  mood_line "$code" "$temp"
+  echo
+}
+
+fallback_ascii_weather() {
+  echo "Real weather not available. Showing random ASCII weather:"
+  echo
+
+  r=$(( (RANDOM % 4) ))
+
+  case "$r" in
+    0)
+      echo "      .--."
+      echo "   .-(    )."
+      echo "  (___.__)__)"
+      echo "   Cloudy vibes"
+      ;;
+    1)
+      echo "    \\  /"
+      echo "     .-."
+      echo "  --(   )--"
+      echo "     '-'"
+      echo "   Bright and sunny-ish"
+      ;;
+    2)
+      echo "     * * *"
+      echo "    *     *"
+      echo "     * * *"
+      echo "    Snow feelings"
+      ;;
+    3)
+      echo "     .-."
+      echo "    (   )."
+      echo "   (___(__)"
+      echo "   Rainstarter"
+      ;;
+  esac
+  echo
+}
+
+fetch_real_weather() {
+  if [ -z "$LOCATION" ]; then
+    echo "BP_WEATHER_LOCATION is not set."
+    return 1
+  fi
+
+  echo "Parsing location: $LOCATION"
+  set -- $(parse_location) || return 1
+
+  latitude="$1"
+  longitude="$2"
+
+  echo "Latitude:  $latitude"
+  echo "Longitude: $longitude"
+  echo
+  echo "Fetching real weather from Open-Meteo..."
+  echo "  $API_URL?latitude=$latitude&longitude=$longitude&current_weather=true"
+  echo
+
+  response="$(curl -s "$API_URL?latitude=$latitude&longitude=$longitude&current_weather=true" || true)"
+
+  if [ -z "$response" ]; then
+    echo "Could not fetch weather (empty response)."
+    return 1
+  fi
+
+  # Extract from current_weather: temperature and weathercode
+  temp="$(printf "%s" "$response" | grep -Eo '"temperature"[ ]*:[ ]*[-0-9.]+' | head -n1 | grep -Eo '[-0-9.]+' || true)"
+  code="$(printf "%s" "$response" | grep -Eo '"weathercode"[ ]*:[ ]*[0-9]+' | head -n1 | grep -Eo '[0-9]+' || true)"
+
+  if [ -z "$temp" ] && [ -z "$code" ]; then
+    echo "Could not parse weather from response."
+    return 1
+  fi
+
+  echo "Real weather data retrieved:"
+  echo "  Temperature: ${temp:-unknown} C"
+  echo "  Weather code: ${code:-unknown}"
+  echo
+
+  ascii_weather "$temp" "$code"
+  return 0
+}
+
+if ! fetch_real_weather; then
+  fallback_ascii_weather
+fi
+
+echo "Weather lookup done. Continuing build..."
+echo
+
+exit 0
